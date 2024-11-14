@@ -1,4 +1,5 @@
 import csv
+from functools import lru_cache
 
 
 def read_csv(file_path, delimiter=',', has_header=True):
@@ -59,7 +60,6 @@ class GroupBy:
                 temp = dict()
                 temp[self.column_name] = key
                 temp['sum'] = value
-                print(temp)
                 data.append(temp)
             return data
         return Dataframe(self.operations + [('sum', sum_op)])
@@ -234,12 +234,30 @@ class Dataframe:
                         raise TypeError("Incomaptible data types")
             return data 
         return Dataframe(self.operations + [('with_column', with_column_op)])
- 
+    
+
+    @lru_cache(maxsize = 1000)
+    def cache(self):
+        def cache_op(data):
+            return data
+        return Dataframe(self.operations + [('cache', cache_op)])
+
+    def unpersist(self):
+        if 'cache' not in [op[0] for op in self.operations]:
+            raise ValueError("Cannot call unpersist before cache")
+        def unpersist_op(data):
+            print(self.cache.cache_info().currsize)
+            self.cache.cache_clear()
+            print(self.cache.cache_info().currsize)
+            return data
+        return Dataframe(self.operations + [('unpersist', unpersist_op)])
+
     def _execute_operations(self):
         # Execute only if not cached
         if self._cached_data is None:
             data = None
             for _, operation in self.operations:
+                print(_, operation)
                 data = operation(data) if data is not None else operation()
             self._cached_data = data
         return self._cached_data
@@ -265,6 +283,8 @@ class Dataframe:
                 if write_header:
                     writer.writeheader()
                 writer.writerows(data)
+    
+
 
 if __name__ == "__main__":
     df = read_csv('data.csv')
@@ -273,4 +293,6 @@ if __name__ == "__main__":
     df = df.select('id', 'First Name', 'Last Name')
     df = df.with_column('id', '-', 5)
     df = df.group_by('First Name').sum('id')
+    df = df.cache()
+    df = df.unpersist()
     print(df)
