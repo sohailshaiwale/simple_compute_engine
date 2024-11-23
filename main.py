@@ -27,7 +27,6 @@ class GroupBy:
         self.operations = operations
         self.column_name = column_name
 
-# Needs improvement
     def count(self):
         def count_op(data):
             res = dict()
